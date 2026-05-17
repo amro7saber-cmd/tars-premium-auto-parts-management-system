@@ -3,22 +3,44 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
-
-// Minimal real-world chat example types (shared by frontend and worker)
-export interface User {
+export interface InventoryPart {
   id: string;
-  name: string;
+  Part_Name: string;
+  OEM_Number: string;
+  Brand: string;
+  Origin: string;
+  Shelf_Location: string;
+  Current_Stock: number;
+  Reorder_Level: number;
+  Cost_Price: number;
+  Selling_Price: number;
+  Compatible_Vehicles: string[]; // Vehicle IDs
 }
-
-export interface Chat {
+export interface Vehicle {
   id: string;
-  title: string;
+  Make: string;
+  Model: string;
+  Year_Range: string;
+  Engine_Type: string;
 }
-
-export interface ChatMessage {
+export interface Sale {
   id: string;
-  chatId: string;
-  userId: string;
-  text: string;
-  ts: number; // epoch millis
+  Customer_Name: string;
+  Items: SaleItem[];
+  Total_Amount: number;
+  Payment_Method: 'Cash' | 'Card' | 'Transfer';
+  Timestamp: number;
+}
+export interface SaleItem {
+  Part_ID: string;
+  Part_Name: string;
+  Quantity: number;
+  Price_At_Sale: number;
+}
+export interface Supplier {
+  id: string;
+  Name: string;
+  Contact_Person: string;
+  Phone: string;
+  Email: string;
 }
