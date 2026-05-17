@@ -1,6 +1,6 @@
 # Cloudflare Workers Demo
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/amro7saber-cmd/tars-premium-auto-parts-management-system)
 
 A production-ready full-stack template featuring React, TypeScript, and Cloudflare Workers with Durable Objects for scalable data persistence. This starter includes a minimal real-world chat example demonstrating entity management, API routes, and a modern UI.
 
@@ -97,7 +97,7 @@ This project is optimized for Cloudflare Workers. Deploy with a single command:
 bun run deploy
 ```
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/amro7saber-cmd/tars-premium-auto-parts-management-system)
 
 Alternatively, connect your repository to the Cloudflare dashboard for automatic deployments on every push.
 
