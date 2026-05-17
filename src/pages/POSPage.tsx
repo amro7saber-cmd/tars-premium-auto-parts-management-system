@@ -3,22 +3,38 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Plus, Minus, Trash2, CreditCard, Wallet, Banknote, ShoppingCart } from 'lucide-react';
-import { MOCK_PARTS } from '@shared/mock-data';
+import { Search, Plus, Minus, Trash2, CreditCard, Wallet, Banknote, ShoppingCart, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api-client';
 import { InventoryPart, SaleItem } from '@shared/types';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 export function POSPage() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Transfer'>('Cash');
-  const filteredParts = MOCK_PARTS.filter(p =>
+  const { data: partsData, isLoading } = useQuery({
+    queryKey: ['parts'],
+    queryFn: () => api<{ items: InventoryPart[] }>('/api/parts'),
+  });
+  const parts = partsData?.items ?? [];
+  const filteredParts = parts.filter(p =>
     p.Part_Name.includes(searchTerm) || p.OEM_Number.includes(searchTerm)
   );
   const addToCart = (part: InventoryPart) => {
+    if (part.Current_Stock <= 0) {
+      toast.error('هذا الصنف نفذ من المخزون');
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(item => item.Part_ID === part.id);
       if (existing) {
+        if (existing.Quantity >= part.Current_Stock) {
+          toast.warning('الكمية المطلوبة تتجاوز المتاح في المخزون');
+          return prev;
+        }
         return prev.map(item =>
           item.Part_ID === part.id ? { ...item, Quantity: item.Quantity + 1 } : item
         );
@@ -30,12 +46,16 @@ export function POSPage() {
         Price_At_Sale: part.Selling_Price
       }];
     });
-    toast.success(`تمت إضافة ${part.Part_Name} إلى السلة`);
   };
   const updateQuantity = (id: string, delta: number) => {
+    const part = parts.find(p => p.id === id);
     setCart(prev => prev.map(item => {
       if (item.Part_ID === id) {
         const newQty = Math.max(1, item.Quantity + delta);
+        if (part && newQty > part.Current_Stock) {
+          toast.warning('لا توجد كمية كافية في المخزون');
+          return item;
+        }
         return { ...item, Quantity: newQty };
       }
       return item;
@@ -44,13 +64,30 @@ export function POSPage() {
   const removeFromCart = (id: string) => {
     setCart(prev => prev.filter(item => item.Part_ID !== id));
   };
+  const checkoutMutation = useMutation({
+    mutationFn: (saleData: any) => api('/api/sales', {
+      method: 'POST',
+      body: JSON.stringify(saleData)
+    }),
+    onSuccess: () => {
+      toast.success('تمت عملية البيع بنجاح!');
+      setCart([]);
+      setCustomerName('');
+      queryClient.invalidateQueries({ queryKey: ['parts'] });
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`خطأ في العملية: ${error.message}`);
+    }
+  });
   const handleCheckout = () => {
     if (cart.length === 0) return;
-    toast.success('تمت عملية البيع بنجاح!', {
-      description: `إجمالي الفاتورة: ${total.toLocaleString()} ر.س`,
+    checkoutMutation.mutate({
+      Customer_Name: customerName || 'عميل نقدي',
+      Items: cart,
+      Total_Amount: total,
+      Payment_Method: paymentMethod
     });
-    setCart([]);
-    setCustomerName('');
   };
   const total = cart.reduce((acc, item) => acc + (item.Quantity * item.Price_At_Sale), 0);
   return (
@@ -65,27 +102,47 @@ export function POSPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <ScrollArea className="flex-1 rounded-xl border bg-card p-4">
+        <ScrollArea className="flex-1 rounded-xl border bg-card p-4 min-h-[400px]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredParts.map(part => (
-              <Card key={part.id} className="cursor-pointer hover:border-primary transition-colors group" onClick={() => addToCart(part)}>
-                <CardContent className="p-4 flex justify-between items-center">
-                  <div className="flex flex-col gap-1 text-right">
-                    <span className="font-bold">{part.Part_Name}</span>
-                    <span className="text-xs text-muted-foreground font-mono">{part.OEM_Number}</span>
-                    <span className="text-sm font-semibold text-primary">{part.Selling_Price} ر.س</span>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                    <Plus className="h-5 w-5" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full rounded-xl" />
+              ))
+            ) : filteredParts.length > 0 ? (
+              filteredParts.map(part => (
+                <Card 
+                  key={part.id} 
+                  className={cn(
+                    "cursor-pointer hover:border-primary transition-colors group",
+                    part.Current_Stock <= 0 && "opacity-50 grayscale cursor-not-allowed"
+                  )} 
+                  onClick={() => part.Current_Stock > 0 && addToCart(part)}
+                >
+                  <CardContent className="p-4 flex justify-between items-center">
+                    <div className="flex flex-col gap-1 text-right">
+                      <span className="font-bold">{part.Part_Name}</span>
+                      <span className="text-xs text-muted-foreground font-mono">{part.OEM_Number}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-primary">{part.Selling_Price} ر.س</span>
+                        <span className="text-[10px] text-muted-foreground">({part.Current_Stock} متوفر)</span>
+                      </div>
+                    </div>
+                    <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <Plus className="h-5 w-5" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-10 text-muted-foreground">
+                لا توجد نتائج مطابقة لبحثك.
+              </div>
+            )}
           </div>
         </ScrollArea>
       </div>
       <div className="lg:col-span-5 flex flex-col gap-6">
-        <Card className="flex flex-col h-full shadow-lg border-primary/20 overflow-hidden">
+        <Card className="flex flex-col h-full shadow-lg border-primary/20 overflow-hidden min-h-[600px]">
           <CardHeader className="border-b bg-muted/30">
             <CardTitle className="text-xl">فاتورة بيع جديدة</CardTitle>
           </CardHeader>
@@ -106,11 +163,11 @@ export function POSPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center border rounded-lg overflow-hidden">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none" onClick={(e) => { e.stopPropagation(); updateQuantity(item.Part_ID, -1); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none" onClick={() => updateQuantity(item.Part_ID, -1)}>
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="px-3 py-1 bg-muted/50 text-sm font-bold">{item.Quantity}</span>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none" onClick={(e) => { e.stopPropagation(); updateQuantity(item.Part_ID, 1); }}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none" onClick={() => updateQuantity(item.Part_ID, 1)}>
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
@@ -152,8 +209,16 @@ export function POSPage() {
               <span className="text-lg font-medium opacity-90">الإجمالي النهائي</span>
               <span className="text-3xl font-bold">{total.toLocaleString()} ر.س</span>
             </div>
-            <Button className="w-full h-14 text-xl font-bold bg-white text-primary hover:bg-white/90" disabled={cart.length === 0} onClick={handleCheckout}>
-              إتمام الطلب (Checkout)
+            <Button 
+              className="w-full h-14 text-xl font-bold bg-white text-primary hover:bg-white/90" 
+              disabled={cart.length === 0 || checkoutMutation.isPending} 
+              onClick={handleCheckout}
+            >
+              {checkoutMutation.isPending ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                'إتمام الطلب (Checkout)'
+              )}
             </Button>
           </CardFooter>
         </Card>

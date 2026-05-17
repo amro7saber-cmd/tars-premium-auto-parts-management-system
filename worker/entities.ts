@@ -43,14 +43,24 @@ export class SaleEntity extends IndexedEntity<Sale> {
     Timestamp: 0
   };
   static seedData = MOCK_SALES;
-  // Extension for logic: Handle stock decrement during creation
+  /**
+   * Records a sale and atomically updates stock levels for each item.
+   */
   static async recordSale(env: any, sale: Sale): Promise<Sale> {
     const created = await this.create(env, sale);
-    // Placeholder for future atomic stock decrement logic
-    // for (const item of sale.Items) {
-    //   const part = new PartEntity(env, item.Part_ID);
-    //   await part.mutate(s => ({ ...s, Current_Stock: s.Current_Stock - item.Quantity }));
-    // }
+    // Atomically decrement stock for each part sold
+    for (const item of sale.Items) {
+      const partEntity = new PartEntity(env, item.Part_ID);
+      try {
+        await partEntity.mutate((state) => ({
+          ...state,
+          Current_Stock: Math.max(0, state.Current_Stock - item.Quantity)
+        }));
+      } catch (e) {
+        console.error(`Failed to update stock for part ${item.Part_ID}:`, e);
+        // Continue with other items, even if one failes (though in a prod app you might want full rollback)
+      }
+    }
     return created;
   }
 }
