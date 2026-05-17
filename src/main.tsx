@@ -14,6 +14,8 @@ import '@/index.css'
 import { HomePage } from '@/pages/HomePage'
 import { InventoryPage } from '@/pages/InventoryPage'
 import { POSPage } from '@/pages/POSPage'
+import { VehiclesPage } from '@/pages/VehiclesPage'
+import { SuppliersPage } from '@/pages/SuppliersPage'
 import { AppLayout } from '@/components/layout/AppLayout'
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
@@ -34,12 +36,12 @@ const router = createBrowserRouter([
   },
   {
     path: "/vehicles",
-    element: <AppLayout><div className="text-center py-20 text-muted-foreground">قريباً: إدارة المركبات</div></AppLayout>,
+    element: <AppLayout><VehiclesPage /></AppLayout>,
     errorElement: <RouteErrorBoundary />,
   },
   {
     path: "/suppliers",
-    element: <AppLayout><div className="text-center py-20 text-muted-foreground">قريباً: إدارة الموردين</div></AppLayout>,
+    element: <AppLayout><SuppliersPage /></AppLayout>,
     errorElement: <RouteErrorBoundary />,
   }
 ]);

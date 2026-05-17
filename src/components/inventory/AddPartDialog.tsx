@@ -22,14 +22,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
-import { Loader2 } from 'lucide-react';
 const partSchema = z.object({
   Part_Name: z.string().min(2, 'الاسم مطلوب'),
   OEM_Number: z.string().min(1, 'الكود مطلوب'),
   Brand: z.string().min(1, 'العلامة التجارية مطلوبة'),
-  Origin: z.string().optional().default(''),
+  Origin: z.string().optional(),
   Shelf_Location: z.string().min(1, 'الموقع مطلوب'),
   Current_Stock: z.coerce.number().min(0),
   Reorder_Level: z.coerce.number().min(0),
@@ -42,7 +39,6 @@ interface AddPartDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 export function AddPartDialog({ open, onOpenChange }: AddPartDialogProps) {
-  const queryClient = useQueryClient();
   const form = useForm<PartFormValues>({
     resolver: zodResolver(partSchema),
     defaultValues: {
@@ -57,24 +53,11 @@ export function AddPartDialog({ open, onOpenChange }: AddPartDialogProps) {
       Selling_Price: 0,
     },
   });
-  const mutation = useMutation({
-    mutationFn: (values: PartFormValues) => 
-      api('/api/parts', {
-        method: 'POST',
-        body: JSON.stringify(values),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['parts'] });
-      toast.success('تمت إضافة القطعة بنجاح');
-      onOpenChange(false);
-      form.reset();
-    },
-    onError: (error: Error) => {
-      toast.error(`خطأ في الإضافة: ${error.message}`);
-    }
-  });
   function onSubmit(values: PartFormValues) {
-    mutation.mutate(values);
+    console.log(values);
+    toast.success('تمت إضافة القطعة بنجاح (محاكاة)');
+    onOpenChange(false);
+    form.reset();
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -194,16 +177,7 @@ export function AddPartDialog({ open, onOpenChange }: AddPartDialogProps) {
                 />
               </div>
               <DialogFooter className="pt-4 sticky bottom-0 bg-background">
-                <Button type="submit" className="w-full" disabled={mutation.isPending}>
-                  {mutation.isPending ? (
-                    <>
-                      <Loader2 className="ms-2 h-4 w-4 animate-spin" />
-                      جاري الحفظ...
-                    </>
-                  ) : (
-                    'حفظ الصنف'
-                  )}
-                </Button>
+                <Button type="submit" className="w-full">حفظ الصنف</Button>
               </DialogFooter>
             </form>
           </Form>

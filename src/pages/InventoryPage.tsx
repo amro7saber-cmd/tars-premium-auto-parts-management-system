@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, AlertCircle, MoreVertical } from 'lucide-react';
+import { Search, Filter, AlertCircle, MoreVertical, Plus } from 'lucide-react';
 import { MOCK_PARTS } from '@shared/mock-data';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { AddPartDialog } from '@/components/inventory/AddPartDialog';
 export function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const filteredParts = MOCK_PARTS.filter(part => 
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const filteredParts = MOCK_PARTS.filter(part =>
     part.Part_Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     part.OEM_Number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     part.Brand.toLowerCase().includes(searchTerm.toLowerCase())
@@ -27,15 +29,19 @@ export function InventoryPage() {
           <h2 className="text-3xl font-bold tracking-tight">إدارة المخزون</h2>
           <p className="text-muted-foreground">قائمة بجميع قطع الغيار المتوفرة ومواقعها.</p>
         </div>
-        <Button className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground">
+        <Button 
+          className="shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
+          <Plus className="h-4 w-4" />
           إضافة صنف جديد
         </Button>
       </div>
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="ابحث بالاسم، OEM، أو العلامة التجارية..." 
+          <Input
+            placeholder="ابحث بالاسم، OEM، أو العلامة التجارية..."
             className="pr-10 bg-muted/50"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -106,6 +112,7 @@ export function InventoryPage() {
           </TableBody>
         </Table>
       </div>
+      <AddPartDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
     </div>
   );
 }
